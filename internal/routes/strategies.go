@@ -220,7 +220,16 @@ func First(best, n int) []int {
 //
 // It orders one tier only, unlike Smart: a free seat is not pushed behind a
 // paid one for running low, since the free one spends nothing by running
-// out of. Among the paid, the listed order stands rather than Smart's
+// out of — and its subscription's allowance says nothing of it. Qoder CN's
+// DeepSeek-Flash is free at price_factor 0 while the account's credits
+// stand at 300/300 spent: those credits are the plan's, spent by other
+// models, and the free model never draws on them. Reading the account's
+// share for a free seat would bury the one seat that still answers, so the
+// free band keeps its listed order rather than Smart's tiers. What limits a
+// free model is its vendor's rate limit, which a failure rests (failure,
+// restOf) and which no window reports ahead of time.
+//
+// Among the paid, the listed order stands rather than Smart's
 // renewal-weighted one, because what this routing is for is the free tier;
 // set a provider's own routing (Smart, in order, weekly pace) if the paid
 // seats should be spent smartly among themselves — a provider or group in
