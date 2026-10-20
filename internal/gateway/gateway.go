@@ -1975,6 +1975,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request, from provider.Pro
 		cands, pl = s.planGroup(g, ms, from)
 		group = groupRef(g, ms)
 		group.Paused = paused
+		group.FreeUnknown = pl.freeUnknown
 		scope, mode, rotate = provider.GroupPrefix+g.ID, g.Affinity, routingOf(g.Routing) == provider.Rotate
 		leadScope = scope
 		if words != "" {

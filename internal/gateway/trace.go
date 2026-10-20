@@ -167,6 +167,12 @@ type GroupRef struct {
 	Auto     bool     `json:"auto,omitempty"`
 	Sink     bool     `json:"sink,omitempty"` // provider.Group.Sink, as it applies
 	Members  []string `json:"members"`        // those ready, as provider/model[:effort fixed on it]
+	// FreeUnknown: routed free first, but no member's cost could be told —
+	// nothing has fetched the vendors' lists, and no catalog prices them —
+	// so this request went In order. The Routing page says the routing
+	// ordered nothing, rather than leaving that to look as if nothing was
+	// free to spend.
+	FreeUnknown bool `json:"freeUnknown,omitempty"`
 	// Subs: the groups in the group, at any depth, outermost first
 	Subs []SubGroup `json:"subs,omitempty"`
 	// Via: for each of Members, the groups in the group it is of, as
@@ -398,6 +404,10 @@ type planned struct {
 	// model is, though no other can read it
 	unlisted  []candidate
 	unlistedW []Weighed
+	// freeUnknown: a pool routed free first whose members' costs none could
+	// tell, so the order it asked for is the listed one. Set by the weighing
+	// of the pool the request was routed to, for the trace to say.
+	freeUnknown bool
 }
 
 func weighed(c candidate, p provider.Provider, wg weighing, fallback bool, from provider.Protocol) Weighed {

@@ -1648,20 +1648,34 @@ func (p Provider) PaidBesideFree(model string) bool {
 // mimo-v2.6-flash-free is, and a key's free model, which has no allowance
 // to draw on and so is judged by its price alone.
 //
-// A model neither listed free nor priced is not free: nothing says it costs
-// nothing, and the routes that go by this put it with the paid ones, so a
-// pool without free models behaves as In order.
+// A model neither listed free nor priced is not free, and that is not the
+// same as it being priced: FreeModelKnown tells the two apart. A pool whose
+// seats all answer "not free, not known" — a vendor added a minute ago,
+// whose list nothing has fetched — is one Free first orders nothing in, and
+// saying so is what keeps the routing from spending quietly.
 func (p Provider) FreeModel(model string) bool {
+	free, _ := p.FreeModelKnown(model)
+	return free
+}
+
+// FreeModelKnown is FreeModel, and whether p could tell at all: false, false
+// is a model whose list was never fetched and which no catalog prices, so
+// nothing says what it costs either way. Free first reads it to know when
+// it has ordered nothing, rather than to treat unknown as paid.
+func (p Provider) FreeModelKnown(model string) (free, known bool) {
 	for _, m := range p.Available() {
 		if strings.EqualFold(m.ID, model) {
 			if m.Free {
-				return true
+				return true, true
 			}
 			break
 		}
 	}
 	pr, ok := p.ListPrice(model)
-	return ok && pr.Input == 0 && pr.Output == 0 && pr.CacheRead == 0 && pr.CacheWrite == 0
+	if !ok {
+		return false, false
+	}
+	return pr.Input == 0 && pr.Output == 0 && pr.CacheRead == 0 && pr.CacheWrite == 0, true
 }
 
 // Known are the model's own reasoning levels, when known.

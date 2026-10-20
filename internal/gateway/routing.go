@@ -1200,6 +1200,13 @@ type weighing struct {
 	// free is each seat's model costing nothing there, by rest key: filled
 	// only when the routing weighs by it (routes.Strategy.ByFree)
 	free map[string]bool
+
+	// freeUnknown: no seat could be told free or paid — a pool whose
+	// vendors' lists nothing has fetched, and which no catalog prices — so
+	// Free first ordered nothing and the pool spends In order. The Routing
+	// page says so: a routing that quietly spends what it was set to save
+	// is worse than one that says it can't tell yet.
+	freeUnknown bool
 }
 
 type allowanceKey struct {
@@ -1334,10 +1341,15 @@ func weighRouted(p provider.Provider, cs []candidate, model string, from provide
 		// only a routing that weighs by it pays for working it out: it
 		// reads each candidate's provider list (provider.FreeModel)
 		wg.free = map[string]bool{}
+		anyKnown, anyFree := false, false
 		for i, c := range cs {
-			free := c.p.FreeModel(c.model)
+			free, known := c.p.FreeModelKnown(c.model)
 			seats[i].Free, wg.free[c.rest] = free, free
+			anyKnown, anyFree = anyKnown || known, anyFree || free
 		}
+		// nothing here could be told: the routing ordered nothing, and the
+		// pool spends In order until a list is fetched
+		wg.freeUnknown = !anyKnown && !anyFree
 	}
 	order := routes.Apply(st, p.ID, seats)
 	out := make([]candidate, 0, len(cs))

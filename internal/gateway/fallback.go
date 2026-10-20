@@ -346,6 +346,7 @@ func (s *Server) plan(p provider.Provider, model string, from provider.Protocol)
 		pl.held = append(pl.held, creditsHeld(barred)...)
 		pl.capped = append(pl.capped, capHeldOnly(barred)...)
 		cs, wg := weigh(q, cs, m, from)
+		pl.freeUnknown = pl.freeUnknown || wg.freeUnknown
 		for i, c := range cs {
 			w := weighed(c, q, wg, fallback, from)
 			w.Turn = i == 0 && goesRound(q.Routing) && len(cs) > 1
@@ -547,6 +548,7 @@ func planLevel(g provider.Group, ms []provider.Member, depth int, from provider.
 			routing = "" // the member picked, its keys or accounts weighed smartly
 		}
 		weighedHeads, wg := weigh(provider.Provider{ID: provider.GroupPrefix + g.ID, Routing: routing}, heads, "", from)
+		pl.freeUnknown = pl.freeUnknown || wg.freeUnknown
 		var out []candidate
 		for i, c := range weighedHeads {
 			k := at[c.seat()][0]

@@ -74,3 +74,92 @@ func TestFreeModelIsOnlyWhereTheVendorSaysSo(t *testing.T) {
 		t.Error("plain is free")
 	}
 }
+
+// FreeModelKnown is FreeModel and whether p could tell at all. A provider
+// whose list nothing has fetched and whose model no catalog prices answers
+// false, false — unknown, not paid — and that is what keeps a pool routed
+// free first from reading as one where everything costs money. The vendor's
+// own list, once fetched, and a priced catalog both settle it.
+func TestFreeModelKnownTellsUnknownFromPaid(t *testing.T) {
+	prefsHome(t)
+	p := Provider{ID: "unk", Name: "Unk", Key: "sk-u", Chat: "http://127.0.0.1:9/v1", Models: []string{"m"}}
+	if err := Save(p); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Find("unk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// nothing fetched, and no catalog pricing it
+	if _, ok := got.Listed(); ok {
+		t.Fatal("this test needs a provider no list was fetched for")
+	}
+	if _, priced := got.ListPrice("m"); priced {
+		t.Fatal("this test needs a model no catalog prices")
+	}
+	free, known := got.FreeModelKnown("m")
+	if free || known {
+		t.Fatalf("unknown reads as free=%v known=%v; it must be false, false", free, known)
+	}
+	// FreeModel keeps answering false for it: unknown is not a saving
+	if got.FreeModel("m") {
+		t.Fatal("FreeModel says an unknown model is free")
+	}
+
+	// the vendor says what it costs: known, and paid
+	liveFree(t, "unk", `{"models":[{"id":"m","price":{"input":3,"output":15}}]}`)
+	fresh, err := Find("unk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if free, known := fresh.FreeModelKnown("m"); free || known {
+		t.Fatalf("a priced model reads as free=%v known=%v; the price is not what FreeModelKnown reads", free, known)
+	}
+
+	// the vendor says it is free: known, and free
+	liveFree(t, "unk", `{"models":[{"id":"m","free":true}]}`)
+	fresh, err = Find("unk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if free, known := fresh.FreeModelKnown("m"); !free || !known {
+		t.Fatalf("a model its vendor marks free reads as free=%v known=%v", free, known)
+	}
+}
+
+// The catalog's price settles it too, for a model no vendor list carries:
+// known, and paid unless every count is zero.
+func TestFreeModelKnownReadsACatalogPrice(t *testing.T) {
+	prefsHome(t)
+	p := Provider{ID: "cat", Name: "Cat", Catalog: "cat", Key: "sk-c", Chat: "http://127.0.0.1:9/v1", Models: []string{"priced-m", "zero-m"}}
+	if err := Save(p); err != nil {
+		t.Fatal(err)
+	}
+	writeCatalog(t, `{"cat":{"models":{
+		"priced-m":{"id":"priced-m","name":"Priced","cost":{"input":3,"output":15}},
+		"zero-m":{"id":"zero-m","name":"Zero","cost":{}}
+	}}}`)
+	got, err := Find("cat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if free, known := got.FreeModelKnown("priced-m"); free || !known {
+		t.Fatalf("a cataloged price reads as free=%v known=%v; it is known and paid", free, known)
+	}
+	if free, known := got.FreeModelKnown("zero-m"); !free || !known {
+		t.Fatalf("a catalog price of zero on every count reads as free=%v known=%v", free, known)
+	}
+}
+
+// writeCatalog replaces the model catalog the tests price against.
+func writeCatalog(t *testing.T, json string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(catalog.CachePath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(catalog.CachePath(), []byte(json), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog.Reset()
+	t.Cleanup(catalog.Reset)
+}

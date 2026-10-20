@@ -658,6 +658,9 @@ function routingPage(part) {
       // a pause by folder (#1606) says the folder it read, or that none was said
       if (p.byFolder) out[out.length - 1] += " " + (p.folder ? t("The agent works in {folder}.", { folder: p.folder }) : t("The agent didn't say which folder it works in."));
     }
+    // free first that could tell nothing: the pool spent In order, which
+    // is what a pool where every model is paid does too. Say which this is.
+    if (r.group?.freeUnknown) out.push(t("Free first: no member's cost is known yet — nothing has fetched these models' lists — so this request went in the listed order. Fetch the models to let free ones be spent first."));
     const smart = (x) => !x.routing && (x.kind === "account" || x.known);
     const someKnown = r.order.some((x) => x.known);
     for (const x of r.order.slice(1)) {
